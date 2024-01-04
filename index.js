@@ -22,18 +22,25 @@ console.log("CANVAS_HEIGHT", CANVAS_HEIGHT);
 
 const backgroundImage = new Image();
 backgroundImage.src = "sampleBackgroundVertical.png";
+const backgroundImage2 = new Image();
+backgroundImage2.src = "sampleBackgroundVertical2.png";
 const playerImage = new Image();
 playerImage.src = "sampleShip.png";
 // document.body.appendChild(backgroundImage);
 
 let frame = 0;
 
-let player = {
+const player = {
   x: CANVAS_SIZE / 2,
   y: CANVAS_SIZE / 2,
   size: 26,
+  radius: 13,
   keys: [],
+  lastProjectileFrame: 0,
+  projectileCooldown: 10,
 };
+
+const entities = [];
 
 startGame();
 
@@ -42,11 +49,11 @@ function startGame() {
   ctx.fillStyle = "black";
   animate();
   // // ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // if (!interval) {
-  //   interval = setInterval(() => {
-  //     animate();
-  //   }, 1);
-  // }
+  if (!interval) {
+    interval = setInterval(() => {
+      animate();
+    }, 1);
+  }
 }
 
 function animate() {
@@ -56,24 +63,34 @@ function animate() {
 
   processPlayerInput();
   drawBackground();
+  entities.forEach((e) => {
+    e.move();
+    e.animate();
+  });
   drawPlayer();
   // ctx.fillRect(50, 50, 50, 50);
-  requestAnimationFrame(animate);
+  // requestAnimationFrame(animate);
+  // console.log(entities);
 }
 
 function processPlayerInput() {
-  console.log("pressedKeys", pressedKeys);
-  if (pressedKeys[87]) {
-    player.y -= 1;
-  }
-  if (pressedKeys[83]) {
-    player.y += 1;
-  }
-  if (pressedKeys[65]) {
-    player.x -= 1;
-  }
-  if (pressedKeys[68]) {
-    player.x += 1;
+  // console.log("pressedKeys", pressedKeys);
+
+  // w // up
+  if (pressedKeys[87] || pressedKeys[38]) player.y -= 1;
+  // a // left
+  if (pressedKeys[65] || pressedKeys[37]) player.x -= 1;
+  // s // down
+  if (pressedKeys[83] || pressedKeys[40]) player.y += 1;
+  // d // right
+  if (pressedKeys[68] || pressedKeys[39]) player.x += 1;
+  // spacebar
+  if (
+    pressedKeys[32] &&
+    frame - player.projectileCooldown > player.lastProjectileFrame
+  ) {
+    player.lastProjectileFrame = frame;
+    entities.push(new Projectile(player.x, player.y, 5, 0, -5, ["enemy"]));
   }
 }
 
@@ -87,7 +104,7 @@ function drawBackground() {
       backgroundImage, // image
 
       0, //image X
-      height - frameOffset, //image Y (math to pick near bottom of image)
+      2 * height - CANVAS_SIZE - frameOffset, //image Y (math to pick near bottom of image)
       CANVAS_SIZE, // image ending X
       CANVAS_SIZE, // image ending Y
 
@@ -110,52 +127,50 @@ function drawBackground() {
     CANVAS_SIZE, // canvas ending x
     CANVAS_SIZE // canvas ending y
   );
-
-  ctx.fillRect(0, height - frameOffset, CANVAS_SIZE, 1);
 }
 
 function drawPlayer() {
-  const { x, y, size } = player;
+  const { x, y, size, radius } = player;
   const { height, width } = playerImage;
   ctx.drawImage(
     playerImage, // image
     0, //image X
     0, //image Y
-    width,
-    height,
-    x - size / 2,
-    y - size / 2,
-    size,
-    size
+    width, // image width
+    height, // image height
+    x - radius, // where on canvas
+    y - radius, // where on canvas
+    size, // w on canvas
+    size // h on canvas
   );
   ctx.fillRect(x - 1, y - 1, 2, 2);
 }
 
-function drawShapeAt(shape, color, x, y, sizeX, sizeY) {
-  ctx.fillStyle = color;
-  switch (shape) {
-    case "square":
-      ctx.fillRect(x, y, sizeX, sizeY);
-      break;
-    case "rectangle":
-      ctx.fillRect(x, y, sizeX, sizeY);
-      break;
-    case "triangle":
-      ctx.beginPath();
-      ctx.moveTo(x + sizeX / 2, sizeY);
-      ctx.lineTo(x + sizeX, y + sizeY);
-      ctx.lineTo(x, y + sizeY);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    case "circle":
-      ctx.fill(x, y, sizeX, sizeY);
-      break;
-    case "hexagon":
-      ctx.fillRect(x, y, sizeX, sizeY);
-      break;
-  }
-}
+// function drawShapeAt(shape, color, x, y, sizeX, sizeY) {
+//   ctx.fillStyle = color;
+//   switch (shape) {
+//     case "square":
+//       ctx.fillRect(x, y, sizeX, sizeY);
+//       break;
+//     case "rectangle":
+//       ctx.fillRect(x, y, sizeX, sizeY);
+//       break;
+//     case "triangle":
+//       ctx.beginPath();
+//       ctx.moveTo(x + sizeX / 2, sizeY);
+//       ctx.lineTo(x + sizeX, y + sizeY);
+//       ctx.lineTo(x, y + sizeY);
+//       ctx.closePath();
+//       ctx.fill();
+//       break;
+//     case "circle":
+//       ctx.fill(x, y, sizeX, sizeY);
+//       break;
+//     case "hexagon":
+//       ctx.fillRect(x, y, sizeX, sizeY);
+//       break;
+//   }
+// }
 
 function drawTriangle(x, y, size) {
   // let region = new Path2D();
@@ -178,52 +193,53 @@ function drawT() {
   ctx.fill();
 }
 
-// Key listeners
+class Projectile {
+  constructor(x, y, size, vx, vy, collisionTags) {
+    console.log(x, y, size, vx, vy, collisionTags);
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.vx = vx; // velocity x
+    this.vy = vy; // velocity y
+    this.collisionTags = collisionTags;
+  }
+  move() {
+    this.x += this.vx;
+    this.y += this.vy;
+    console.log("projectile moving", this.x, this.y);
+    if (checkIfOffScreen(this.x, this.y)) {
+      console.log("is off screen");
+      delete this;
+    }
+  }
+  animate() {
+    drawCircle(this.x, this.y, this.size, "white", "black", 1);
+  }
+  checkCollision() {}
+}
 
-// // Add Keys to player keys
-// document.addEventListener("keydown", function ({ key }) {
-//   console.log(key, player.keys);
-//   switch (key) {
-//     case "ArrowUp":
-//     case "w":
-//       !player.keys.includes(DIR.UP) && player.keys.push(DIR.UP);
-//       break;
-//     case "ArrowLeft":
-//     case "a":
-//       !player.keys.includes(DIR.LEFT) && player.keys.push(DIR.LEFT);
-//       break;
-//     case "ArrowRight":
-//     case "d":
-//       !player.keys.includes(DIR.RIGHT) && player.keys.push(DIR.RIGHT);
-//       break;
-//     case "ArrowDown":
-//     case "s":
-//       !player.keys.includes(DIR.DOWN) && player.keys.push(DIR.DOWN);
-//       break;
-//   }
-// });
+function determineDistanceBetweenPoints(x1, y1, x2, y2) {
+  let a = x1 - x2,
+    b = y1 - y2;
+  return Math.sqrt(a * a + b * b);
+}
 
-// function processKeyup() {}
+function checkIfOffScreen(x, y) {
+  let result = false;
+  if (x < 0 || y < 0 || x > CANVAS_WIDTH || y > CANVAS_HEIGHT) result = true;
+  return false;
+}
 
-// // Remove Keys from player keys
-// document.addEventListener("keyup", function ({ key }) {
-//   console.log(key, player.keys);
-//   switch (key) {
-//     case "ArrowUp":
-//     case "w":
-//       player.keys = player.keys.filter((dir) => dir === DIR.UP);
-//       break;
-//     case "ArrowLeft":
-//     case "a":
-//       player.keys = player.keys.filter((dir) => dir === DIR.LEFT);
-//       break;
-//     case "ArrowRight":
-//     case "d":
-//       player.keys = player.keys.filter((dir) => dir === DIR.RIGHT);
-//       break;
-//     case "ArrowDown":
-//     case "s":
-//       player.keys = player.keys.filter((dir) => dir === DIR.DOWN);
-//       break;
-//   }
-// });
+function drawCircle(x, y, radius, fill, stroke, strokeWidth) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.lineWidth = strokeWidth;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+}
