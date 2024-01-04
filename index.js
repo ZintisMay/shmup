@@ -40,7 +40,7 @@ const player = {
   projectileCooldown: 10,
 };
 
-const entities = [];
+let entities = [];
 
 startGame();
 
@@ -52,7 +52,7 @@ function startGame() {
   if (!interval) {
     interval = setInterval(() => {
       animate();
-    }, 1);
+    }, 10);
   }
 }
 
@@ -63,14 +63,22 @@ function animate() {
 
   processPlayerInput();
   drawBackground();
-  entities.forEach((e) => {
-    e.move();
-    e.animate();
-  });
+  entities = entities
+    .map((entity) => {
+      entity.move();
+      return entity;
+    })
+    .filter((entity) => {
+      return !entity.shouldBeRemoved();
+    })
+    .map((entity) => {
+      entity.animate();
+      return entity;
+    });
   drawPlayer();
   // ctx.fillRect(50, 50, 50, 50);
   // requestAnimationFrame(animate);
-  // console.log(entities);
+  console.log(entities.length);
 }
 
 function processPlayerInput() {
@@ -194,26 +202,40 @@ function drawT() {
 }
 
 class Projectile {
-  constructor(x, y, size, vx, vy, collisionTags) {
-    console.log(x, y, size, vx, vy, collisionTags);
+  collisions = 0;
+  constructor(x, y, radius, vx, vy, collisionTags, collisionLimit = 1) {
+    console.log(x, y, radius, vx, vy, collisionTags);
     this.x = x;
     this.y = y;
-    this.size = size;
+    this.radius = radius;
     this.vx = vx; // velocity x
     this.vy = vy; // velocity y
     this.collisionTags = collisionTags;
+    this.collisionLimit = collisionLimit || 1;
   }
   move() {
     this.x += this.vx;
     this.y += this.vy;
     console.log("projectile moving", this.x, this.y);
-    if (checkIfOffScreen(this.x, this.y)) {
-      console.log("is off screen");
-      delete this;
-    }
+  }
+  checkForCollision(targetX, targetY) {
+    let distance = determineDistanceBetweenPoints(
+      this.x,
+      this.y,
+      targetX,
+      targetY
+    );
+    let hasCollided = distance < this.radius;
+    if (hasCollided) this.collisions++;
+    return hasCollided;
+  }
+  shouldBeRemoved() {
+    return (
+      checkIfOffScreen(this.x, this.y) || this.collisions >= this.collisionLimit
+    );
   }
   animate() {
-    drawCircle(this.x, this.y, this.size, "white", "black", 1);
+    drawCircle(this.x, this.y, this.radius, "white", "black", 1);
   }
   checkCollision() {}
 }
@@ -225,8 +247,7 @@ function determineDistanceBetweenPoints(x1, y1, x2, y2) {
 }
 
 function checkIfOffScreen(x, y) {
-  let result = false;
-  if (x < 0 || y < 0 || x > CANVAS_WIDTH || y > CANVAS_HEIGHT) result = true;
+  if (x < 0 || y < 0 || x > CANVAS_WIDTH || y > CANVAS_HEIGHT) return true;
   return false;
 }
 
