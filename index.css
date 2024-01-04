@@ -1,0 +1,25 @@
+body {
+  background-color: lightblue;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  flex-direction: column;
+  /* background-image: url(./assets/sampleBackground.png); */
+}
+#gameContainer {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-direction: column;
+  background-color: lightblue;
+  outline: 1px solid black;
+  height: 90vmin;
+  width: 90vmin;
+}
+#gameCanvas {
+  width: 90%;
+  background-color: lightgreen;
+  outline: 2px solid red;
+}
