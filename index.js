@@ -26,11 +26,14 @@ const backgroundImage2 = new Image();
 backgroundImage2.src = "sampleBackgroundVertical2.png";
 const playerImage = new Image();
 playerImage.src = "sampleShip.png";
+const enemyImage1 = new Image();
+enemyImage1.src = "sampleShip2.png";
 // document.body.appendChild(backgroundImage);
 
 let frame = 0;
 
 const player = {
+  allegiance: "friendly",
   x: CANVAS_SIZE / 2,
   y: CANVAS_SIZE / 2,
   size: 26,
@@ -41,17 +44,79 @@ const player = {
 };
 
 let entities = [];
+// let entities2 = {
+//   player: [],
+//   friendlyBullets: [],
+//   enemyBullets: [],
+//   enemies: [],
+//   neutrals: []
+// };
+
+class Ship {
+  hasBeenOnScreen = false;
+  activeFrames = 0;
+  allegiance = "enemy";
+  constructor(
+    startingX, //number
+    startingY, //number
+    startingHealth, //number
+    movementPattern, //array of functions
+    attackPattern, // array of functions
+    sprite, // image
+    direction, // degrees
+    radius // number (px)
+  ) {
+    this.x = startingX;
+    this.y = startingY;
+    this.health = this.startingHealth = startingHealth;
+    this.movementPattern = movementPattern;
+    this.attackPattern = attackPattern;
+    this.sprite = sprite;
+    this.direction = direction;
+    this.spawnFrame = frame;
+    this.radius = radius;
+  }
+  attack() {
+    this.attackPattern(x, y, direction, frame);
+  }
+  move() {
+    this.movementPattern(this);
+  }
+  animate() {
+    this.activeFrames++;
+    drawCircle(this.x, this.y, this.radius, "red", "orange", 2);
+  }
+  shouldBeRemoved() {
+    let isOffScreen = checkIfOffScreen(this.x, this.y);
+    if (!isOffScreen) this.hasBeenOnScreen = true;
+    return (
+      (isOffScreen && this.hasBeenOnScreen) ||
+      this.collisions >= this.collisionLimit
+    );
+  }
+}
 
 startGame();
 
 function startGame() {
   console.log("STARTGAME()");
   ctx.fillStyle = "black";
-  animate();
+  let enemy = new Ship(
+    50,
+    -50,
+    30,
+    sampleMovementPattern,
+    sampleAttackPattern,
+    enemyImage1,
+    180,
+    26
+  );
+  entities.push(enemy);
+  // animate();
   // // ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (!interval) {
     interval = setInterval(() => {
-      animate();
+      requestAnimationFrame(animate);
     }, 10);
   }
 }
@@ -63,22 +128,13 @@ function animate() {
 
   processPlayerInput();
   drawBackground();
-  entities = entities
-    .map((entity) => {
-      entity.move();
-      return entity;
-    })
-    .filter((entity) => {
-      return !entity.shouldBeRemoved();
-    })
-    .map((entity) => {
-      entity.animate();
-      return entity;
-    });
+  entities.forEach((entity) => entity.move());
+  entities = entities.filter((entity) => !entity.shouldBeRemoved());
+  entities.forEach((entity) => entity.animate());
   drawPlayer();
   // ctx.fillRect(50, 50, 50, 50);
   // requestAnimationFrame(animate);
-  console.log(entities.length);
+  // console.log(entities.length);
 }
 
 function processPlayerInput() {
@@ -201,24 +257,41 @@ function drawT() {
   ctx.fill();
 }
 
+function sampleAttackPattern() {
+  console.log("sampleAttackPattern");
+}
+
+function sampleMovementPattern(entity) {
+  // console.log("sampleMovementPattern", entity);
+  if (entity.activeFrames < 300) {
+    entity.y += 1;
+  } else if (entity.activeFrames > 400) {
+    entity.y -= 1;
+  }
+}
+
+function simpleMovementPattern(entity) {
+  // console.log("simpleMovementPattern");
+  if (entity.y) entity.y += 1;
+}
+
 class Projectile {
   collisions = 0;
-  constructor(x, y, radius, vx, vy, collisionTags, collisionLimit = 1) {
-    console.log(x, y, radius, vx, vy, collisionTags);
+  constructor(x, y, radius, vx, vy, allegiance, collisionLimit = 1) {
+    // console.log(x, y, radius, vx, vy, allegiance);
     this.x = x;
     this.y = y;
     this.radius = radius;
     this.vx = vx; // velocity x
     this.vy = vy; // velocity y
-    this.collisionTags = collisionTags;
+    this.allegiance = allegiance;
     this.collisionLimit = collisionLimit || 1;
   }
   move() {
     this.x += this.vx;
     this.y += this.vy;
-    console.log("projectile moving", this.x, this.y);
   }
-  checkForCollision(targetX, targetY) {
+  checkForCollisions(targetX, targetY) {
     let distance = determineDistanceBetweenPoints(
       this.x,
       this.y,
